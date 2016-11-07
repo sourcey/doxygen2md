@@ -24,14 +24,14 @@
 ## Members
 
 {{#each filtered.compounds}}
-### {{title proto}} {{anchor refid}}
+#### {{title proto}} {{anchor refid}}
 
 {{briefdescription}}
 
 {{detaileddescription}}
 {{/each}}
 {{#each filtered.members}}
-### {{title proto}} {{anchor refid}}
+#### {{title proto}} {{anchor refid}}
 
 {{briefdescription}}
 

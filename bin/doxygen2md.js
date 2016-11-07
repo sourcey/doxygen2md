@@ -15,6 +15,8 @@ program.version(pjson.version)
   .usage('[options] <doxygen directory>')
   .option('-v, --verbose', 'verbose mode', false)
   .option('-a, --anchors', 'add anchors for internal links', false)
+  .option('-g, --groups', 'output doxygen groups separately', false)
+  .option('-o, --output <file>', 'output file', String, 'API.md')
   .parse(process.argv);
 
 if (program.verbose) {
@@ -27,7 +29,8 @@ if (program.args.length == 0) {
   var doxyfile = path.join(process.cwd(), 'Doxyfile');
   if (fs.existsSync(doxyfile)) {
 
-    temp.track(); // Automatically track and cleanup files at exit
+    // Automatically track and cleanup files at exit
+    temp.track();
 
     // Output directory for doxygen
     var ouputDirectory = temp.mkdirSync('doxygen');
@@ -63,7 +66,11 @@ if (program.args.length == 0) {
   }
 }
 else {
-  var options = doxygen2md.defaultOptions;
-  options.directory = program.args[0];
+  var options = assign({}, doxygen2md.defaultOptions, {
+    directory: program.args[0],
+    anchors: program.anchors,
+    groups: program.groups,
+    output: program.output
+  });
   doxygen2md.render(options);
 }

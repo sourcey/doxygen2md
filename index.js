@@ -44,6 +44,8 @@ module.exports = {
     lang: 'cpp',                /** Programming language **/
     directory: null,            /** location of the doxygen files **/
     anchors: true,              /** generate anchors for internal links **/
+    groups: true,               /** output doxygen groups separately **/
+    output: 'API.md',           /** output file **/
 
     'compound': {
       'members': {
@@ -108,7 +110,7 @@ module.exports = {
     });
 
     //
-    // parsing files
+    // Parsing files
     //
     log.verbose('Parsing ' + path.join(options.directory, 'index.xml'));
     fs.readFile(path.join(options.directory, 'index.xml'), 'utf8', function(err, data) {
@@ -116,15 +118,66 @@ module.exports = {
       parser.parseString(data, function (err, result) {
         var root = new Compound();
         doxyparser.parseIndex(root, result.doxygenindex.compound, options);
-        var compounds = root.getAll('compounds', true);
-        var contents = compounds.map(function (compound) {
-          return compound.toMarkdown(templates);
-        });
-        contents.forEach(function (content) {
-          if (content) {
-            process.stdout.write(content);
-          }
-        });
+        root.filtered.compounds = root.filter(root.compounds, 'kind', options.compound.compounds.filter);
+
+        // Output groups
+        if (options.groups) {
+          root.toArray('compounds').forEach(function (groupCompound) {
+            if (groupCompound.kind == 'group') {
+              groupCompound.toArray('compounds').forEach(function (compound) {
+                compound.filtered.members = compound.filter(compound.members, 'section', options.compound.members.filter, groupCompound);
+                compound.filtered.compounds = compound.filter(compound.compounds, 'kind', options.compound.compounds.filter, groupCompound);
+              });
+              groupCompound.filtered.compounds = groupCompound.filter(groupCompound.compounds, 'kind', options.compound.compounds.filter, groupCompound);
+
+              var compounds = groupCompound.getAll('compounds', true, groupCompound);
+              compounds.unshift(groupCompound);
+              var contents = compounds.map(function (compound) {
+                return compound.toMarkdown(templates);
+              });
+
+              var file = path.basename(options.output, path.extname(options.output));
+              file += '-' + groupCompound.name;
+              file += path.extname(options.output);
+              var output = path.join(path.dirname(options.output), file);
+              log.verbose('Output file', output)
+              var stream = fs.createWriteStream(output);
+              stream.once('open', function(fd) {
+                contents.forEach(function (content) {
+                  if (content) {
+                    // process.stdout.write(content);
+                    stream.write(content);
+                  }
+                });
+                stream.end();
+              });
+            }
+          });
+        }
+
+        // Output single file
+        else {
+          root.toArray('compounds').forEach(function (compound) {
+            compound.filtered.members = compound.filter(compound.members, 'section', options.compound.members.filter);
+            compound.filtered.compounds = compound.filter(compound.compounds, 'kind', options.compound.compounds.filter);
+          });
+
+          var compounds = root.getAll('compounds', true);
+          var contents = compounds.map(function (compound) {
+            return compound.toMarkdown(templates);
+          });
+          contents.forEach(function (content) {
+            if (content) {
+              // process.stdout.write(content);
+              fs.writeFile(options.output, content, function(err) {
+                  if (err) {
+                      console.assert(err);
+                  }
+                  log.verbose('Output file', content);
+              });
+            }
+          });
+        }
       });
     });
   }
